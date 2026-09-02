@@ -1,0 +1,10 @@
+django.apps
+rest_framework.authentication
+rest_framework.exceptions
+django.conf
+django.apps
+django.db
+django.urls
+django.core.asgi
+django.contrib
+django.core.wsgi
