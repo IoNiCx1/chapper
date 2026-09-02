@@ -11,7 +11,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.conversation_id = self.scope['url_route']['kwargs']['conversation_id']
         self.group_name = f'conversation_{self.conversation_id}'
 
-        # Authenticate using a token passed as a query param: ws://.../?token=xxxx
         query_string = self.scope['query_string'].decode()
         token = None
         for pair in query_string.split('&'):
@@ -37,45 +36,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data):
         data = json.loads(text_data)
-        text = data.get('text', '')
+        msg_type = data.get('type')
 
-        message = await self.save_message(self.conversation_id, self.user, text)
-
-        await self.channel_layer.group_send(
-            self.group_name,
-            {
-                'type': 'chat_message',
-                'message_id': str(message.id),
-                'sender_id': str(self.user.id),
-                'text': message.text,
-                'created_at': message.created_at.isoformat(),
-            }
-        )
-
-    async def chat_message(self, event):
-        await self.send(text_data=json.dumps({
-            'id': event['message_id'],
-            'sender': event['sender_id'],
-            'text': event['text'],
-            'created_at': event['created_at'],
-        }))
-
-    @database_sync_to_async
-    def get_user_from_token(self, token):
-        try:
-            return AnonUser.objects.get(auth_token=token)
-        except AnonUser.DoesNotExist:
-            return None
-
-    @database_sync_to_async
-    def check_participant(self, conversation_id, user):
-        return Conversation.objects.filter(id=conversation_id, participants=user).exists()
-
-    @database_sync_to_async
-    def save_message(self, conversation_id, user, text):
-        conversation = Conversation.objects.get(id=conversation_id)
-        return Message.objects.create(conversation=conversation, sender=user, text=text)
-
+        if msg_type == 'chat_message':
+            await self.handle_chat_message(data)
 
     async def handle_chat_message(self, data):
         text = data.get('text', '')
@@ -95,6 +59,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'created_at': message.created_at.isoformat(),
             }
         )
+
     async def chat_message_event(self, event):
         await self.send(text_data=json.dumps({
             'type': 'chat_message',
@@ -110,4 +75,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'file_size': event.get('file_size'),
             'created_at': event['created_at'],
         }))
-    
+
+    @database_sync_to_async
+    def get_user_from_token(self, token):
+        try:
+            return AnonUser.objects.get(auth_token=token)
+        except AnonUser.DoesNotExist:
+            return None
+
+    @database_sync_to_async
+    def check_participant(self, conversation_id, user):
+        return Conversation.objects.filter(id=conversation_id, participants=user).exists()
+
+    @database_sync_to_async
+    def save_message(self, conversation_id, user, text):
+        conversation = Conversation.objects.get(id=conversation_id)
+        return Message.objects.create(conversation=conversation, sender=user, text=text)

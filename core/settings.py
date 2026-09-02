@@ -20,8 +20,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-t(&n@+#c=y!swey5q%v)fc*7c-jtrn-^quv)23e11u1ra1-2v0'
 
+import os
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-fallback-for-local-dev-only')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
@@ -148,6 +149,8 @@ REST_FRAMEWORK = {
         'accounts.authentication.DeviceTokenAuthentication',
     ],
 }
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [
+    "https://chapper.onrender.com",
+]
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
