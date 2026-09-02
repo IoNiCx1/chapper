@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Chatapp — local test client</title>
+<style>
+  :root {
+    --ink: #17212B;
+    --ink-soft: #4A5A68;
+    --paper: #F6F5F2;
+    --panel: #FFFFFF;
+    --line: #E3DFD6;
+    --accent: #2E6F5E;
+    --accent-soft: #E4EFE9;
+    --bubble-mine: #2E6F5E;
+    --bubble-theirs: #ECEAE4;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    height: 100vh;
+    display: flex;
+  }
+
+  .sidebar {
+    width: 300px;
+    flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .me-block {
+    padding: 18px 16px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .me-label {
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-bottom: 4px;
+  }
+
+  .me-id {
+    font-size: 13px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    word-break: break-all;
+    color: var(--accent);
+  }
+
+  .new-chat {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    gap: 8px;
+  }
+
+  .new-chat input {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 13px;
+    background: var(--paper);
+  }
+
+  .new-chat button, .send-btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .new-chat button:hover, .send-btn:hover { opacity: 0.9; }
+
+  .conv-list {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .conv-item {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line);
+    cursor: pointer;
+    font-size: 13px;
+  }
+
+  .conv-item:hover { background: var(--accent-soft); }
+  .conv-item.active { background: var(--accent-soft); border-left: 3px solid var(--accent); }
+
+  .conv-item .conv-title {
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  .conv-item .conv-sub {
+    color: var(--ink-soft);
+    font-size: 11px;
+  }
+
+  .empty-hint {
+    padding: 20px 16px;
+    color: var(--ink-soft);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .chat-header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .chat-header h2 {
+    font-size: 15px;
+    margin: 0;
+  }
+
+  .invite-line {
+    padding: 6px 24px;
+    background: var(--accent-soft);
+    font-size: 12px;
+    color: var(--ink-soft);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .invite-line strong {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--accent);
+  }
+
+  .copy-btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  .copy-btn:hover { opacity: 0.9; }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #C0392B;
+    display: inline-block;
+    margin-right: 6px;
+  }
+
+  .status-dot.connected { background: var(--accent); }
+
+  .status-text { font-size: 12px; color: var(--ink-soft); }
+
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .bubble {
+    max-width: 60%;
+    padding: 9px 13px;
+    border-radius: 14px;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  .bubble.mine {
+    align-self: flex-end;
+    background: var(--bubble-mine);
+    color: white;
+    border-bottom-right-radius: 3px;
+  }
+
+  .bubble.theirs {
+    align-self: flex-start;
+    background: var(--bubble-theirs);
+    color: var(--ink);
+    border-bottom-left-radius: 3px;
+  }
+
+  .bubble .sender-name {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    opacity: 0.8;
+    margin-bottom: 2px;
+  }
+
+  .bubble .meta {
+    display: block;
+    font-size: 10px;
+    opacity: 0.65;
+    margin-top: 3px;
+  }
+
+  .composer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--line);
+    background: var(--panel);
+    display: flex;
+    gap: 10px;
+  }
+
+  .composer input {
+    flex: 1;
+    padding: 11px 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-size: 14px;
+    background: var(--paper);
+  }
+
+  .placeholder-screen {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-soft);
+    font-size: 14px;
+  }
+
+  /* ---------- Toast ---------- */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--ink);
+    color: white;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 1000;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+</style>
+</head>
+<body>
+
+  <div class="sidebar">
+    <div class="me-block">
+      <div class="me-label">Signed in as (device token)</div>
+      <div class="me-id" id="meId">loading…</div>
+    </div>
+
+    <div class="new-chat">
+      <input id="peerIdInput" placeholder="Paste another user's ID" />
+      <button onclick="createConversation()">Start</button>
+    </div>
+
+    <div class="new-chat">
+      <input id="groupNameInput" placeholder="New group name" />
+      <button onclick="createGroup()">Create</button>
+    </div>
+
+    <div class="new-chat">
+      <input id="inviteCodeInput" placeholder="Paste invite code" />
+      <button onclick="joinGroup()">Join</button>
+    </div>
+
+    <div class="conv-list" id="convList">
+      <div class="empty-hint">No conversations yet. Open this page in a second browser (or private window) to register a second user, copy its ID from the box above, and paste it here to start a chat.</div>
+    </div>
+  </div>
+
+  <div class="main" id="mainArea">
+    <div class="placeholder-screen">Select or start a conversation</div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+  const API_BASE = 'http://127.0.0.1:8000/api';
+  const WS_BASE = 'ws://127.0.0.1:8000/ws';
+
+  let myId = null;
+  let myToken = null;
+  let myName = null;
+  let activeConversationId = null;
+  let socket = null;
+  let conversationsCache = {};
+
+  // ---------- Toast helper ----------
+
+  function showToast(message) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.classList.remove('show'), 2500);
+  }
+
+  async function copyToClipboard(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (e) {
+      // Fallback for contexts where the async Clipboard API is blocked
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e2) { ok = false; }
+      document.body.removeChild(textarea);
+      return ok;
+    }
+  }
+
+  // ---------- Auth ----------
+
+  async function initAuth() {
+    myToken = localStorage.getItem('auth_token');
+    myId = localStorage.getItem('user_id');
+    myName = localStorage.getItem('display_name');
+
+    if (!myToken) {
+      const res = await fetch(`${API_BASE}/register-device/`, { method: 'POST' });
+      const data = await res.json();
+      myToken = data.auth_token;
+      myId = data.id;
+      localStorage.setItem('auth_token', myToken);
+      localStorage.setItem('user_id', myId);
+    }
+
+    if (!myName) {
+      let inputName = '';
+      while (!inputName) {
+        inputName = (prompt('What should we call you?') || '').trim();
+      }
+      const res = await fetch(`${API_BASE}/me/update/`, {
+        method: 'PATCH',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ display_name: inputName })
+      });
+      const data = await res.json();
+      myName = data.display_name;
+      localStorage.setItem('display_name', myName);
+    }
+
+    document.getElementById('meId').textContent = `${myName} (${myId})`;
+  }
+
+  function authHeaders(extra = {}) {
+    return { 'Authorization': `Bearer ${myToken}`, ...extra };
+  }
+
+  // ---------- Conversations ----------
+
+  async function loadConversations() {
+    const res = await fetch(`${API_BASE}/conversations/list/`, { headers: authHeaders() });
+    const conversations = await res.json();
+
+    conversationsCache = {};
+    conversations.forEach(c => conversationsCache[c.id] = c);
+
+    const list = document.getElementById('convList');
+    if (conversations.length === 0) {
+      list.innerHTML = '<div class="empty-hint">No conversations yet. Open this page in a second browser (or private window) to register a second user, copy its ID from the box above, and paste it here to start a chat.</div>';
+      return;
+    }
+
+    list.innerHTML = '';
+    conversations.forEach(conv => {
+      const others = (conv.participants_detail || []).filter(p => p.id !== myId);
+      const title = conv.is_group
+        ? (conv.name || 'Group chat')
+        : (others[0]?.display_name || 'Unnamed user');
+
+      const item = document.createElement('div');
+      item.className = 'conv-item' + (conv.id === activeConversationId ? ' active' : '');
+      item.innerHTML = `
+        <div class="conv-title">${conv.is_group ? '👥 ' : ''}${escapeHtml(title)}</div>
+        <div class="conv-sub">${conv.is_group ? others.map(o => escapeHtml(o.display_name || 'Unnamed')).join(', ') : ''}</div>
+      `;
+      item.onclick = () => selectConversation(conv.id);
+      list.appendChild(item);
+    });
+  }
+
+  async function createConversation() {
+    const peerId = document.getElementById('peerIdInput').value.trim();
+    if (!peerId) return;
+
+    const res = await fetch(`${API_BASE}/conversations/`, {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ participants: [peerId], is_group: false })
+    });
+
+    if (!res.ok) {
+      showToast('Could not create conversation — check the ID.');
+      return;
+    }
+
+    const conv = await res.json();
+    document.getElementById('peerIdInput').value = '';
+    await loadConversations();
+    selectConversation(conv.id);
+  }
+
+  async function createGroup() {
+    const name = document.getElementById('groupNameInput').value.trim();
+    if (!name) return;
+
+    const res = await fetch(`${API_BASE}/groups/`, {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ name })
+    });
+
+    if (!res.ok) {
+      showToast('Could not create group.');
+      return;
+    }
+
+    const group = await res.json();
+    document.getElementById('groupNameInput').value = '';
+    await loadConversations();
+    selectConversation(group.id);
+
+    const copied = await copyToClipboard(group.invite_code);
+    showToast(copied
+      ? `Group created! Invite code copied to clipboard: ${group.invite_code}`
+      : `Group created! Invite code: ${group.invite_code}`);
+  }
+
+  async function joinGroup() {
+    const code = document.getElementById('inviteCodeInput').value.trim();
+    if (!code) return;
+
+    const res = await fetch(`${API_BASE}/groups/join/${code}/`, {
+      method: 'POST',
+      headers: authHeaders()
+    });
+
+    if (!res.ok) {
+      showToast('Invalid invite code.');
+      return;
+    }
+
+    const group = await res.json();
+    document.getElementById('inviteCodeInput').value = '';
+    await loadConversations();
+    selectConversation(group.id);
+  }
+
+  async function copyInviteCode(code) {
+    const copied = await copyToClipboard(code);
+    showToast(copied ? 'Invite code copied!' : `Invite code: ${code}`);
+  }
+
+  // ---------- Selecting a conversation ----------
+
+  async function selectConversation(convId) {
+    activeConversationId = convId;
+    await loadConversations();
+    renderChatShell(convId);
+    await loadMessages(convId);
+    connectSocket(convId);
+  }
+
+  function renderChatShell(convId) {
+    const conv = conversationsCache[convId];
+    const others = (conv?.participants_detail || []).filter(p => p.id !== myId);
+    const title = conv
+      ? (conv.is_group ? (conv.name || 'Group chat') : (others[0]?.display_name || 'Unnamed user'))
+      : 'Conversation';
+
+    const inviteLine = (conv && conv.is_group)
+      ? `<div class="invite-line">Invite code: <strong>${escapeHtml(conv.invite_code)}</strong><button class="copy-btn" onclick="copyInviteCode('${conv.invite_code}')">Copy</button></div>`
+      : '';
+
+    const main = document.getElementById('mainArea');
+    main.innerHTML = `
+      <div class="chat-header">
+        <h2>${escapeHtml(title)}</h2>
+        <div><span class="status-dot" id="statusDot"></span><span class="status-text" id="statusText">connecting…</span></div>
+      </div>
+      ${inviteLine}
+      <div class="messages" id="messages"></div>
+      <div class="composer">
+        <input id="messageInput" placeholder="Type a message and press Enter" />
+        <button class="send-btn" onclick="sendMessage()">Send</button>
+      </div>
+    `;
+    document.getElementById('messageInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+  }
+
+  async function loadMessages(convId) {
+    const res = await fetch(`${API_BASE}/conversations/${convId}/messages/list/`, { headers: authHeaders() });
+    const messages = await res.json();
+    const box = document.getElementById('messages');
+    box.innerHTML = '';
+    messages.forEach(appendMessage);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function appendMessage(msg) {
+    const box = document.getElementById('messages');
+    if (!box) return;
+    const mine = msg.sender === myId;
+    const senderName = mine ? 'You' : (msg.sender_detail?.display_name || 'Unknown');
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble ' + (mine ? 'mine' : 'theirs');
+    const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const conv = conversationsCache[activeConversationId];
+    const showName = !mine && conv && conv.is_group;
+
+    bubble.innerHTML = `${showName ? `<span class="sender-name">${escapeHtml(senderName)}</span>` : ''}${escapeHtml(msg.text)}<span class="meta">${time}</span>`;
+    box.appendChild(bubble);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  // ---------- WebSocket ----------
+
+  function connectSocket(convId) {
+    if (socket) socket.close();
+
+    socket = new WebSocket(`${WS_BASE}/chat/${convId}/?token=${myToken}`);
+
+    socket.onopen = () => setStatus(true);
+    socket.onclose = () => setStatus(false);
+    socket.onerror = () => setStatus(false);
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'chat_message') {
+        appendMessage({
+          sender: data.sender,
+          sender_detail: data.sender_detail,
+          text: data.text,
+          created_at: data.created_at
+        });
+      }
+    };
+  }
+
+  function setStatus(connected) {
+    const dot = document.getElementById('statusDot');
+    const text = document.getElementById('statusText');
+    if (!dot) return;
+    dot.className = 'status-dot' + (connected ? ' connected' : '');
+    text.textContent = connected ? 'live' : 'disconnected';
+  }
+
+  function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const text = input.value.trim();
+    if (!text || !socket || socket.readyState !== WebSocket.OPEN) return;
+    socket.send(JSON.stringify({ type: 'chat_message', text }));
+    input.value = '';
+  }
+
+  // ---------- Boot ----------
+
+  (async function init() {
+    await initAuth();
+    await loadConversations();
+  })();
+</script>
+</body>
+</html>
