@@ -367,7 +367,7 @@
       while (!inputName) {
         inputName = (prompt('What should we call you?') || '').trim();
       }
-      const res = await fetch(`${API_BASE}/me/update/`, {
+      const res = await apiFetch(`${API_BASE}/me/update/`, {
         method: 'PATCH',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ display_name: inputName })
@@ -384,10 +384,26 @@
     return { 'Authorization': `Bearer ${myToken}`, ...extra };
   }
 
+  // Wraps fetch for authenticated requests. If the server no longer
+  // recognizes our token (e.g. its database was reset), wipe local
+  // identity and reload so the app silently re-registers as a new user.
+  async function apiFetch(url, options = {}) {
+    const res = await fetch(url, options);
+    if (res.status === 401 || res.status === 403) {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_id');
+      localStorage.removeItem('display_name');
+      showToast('Session expired — starting fresh...');
+      setTimeout(() => location.reload(), 1200);
+      throw new Error('Session invalid, reloading');
+    }
+    return res;
+  }
+
   // ---------- Conversations ----------
 
   async function loadConversations() {
-    const res = await fetch(`${API_BASE}/conversations/list/`, { headers: authHeaders() });
+    const res = await apiFetch(`${API_BASE}/conversations/list/`, { headers: authHeaders() });
     const conversations = await res.json();
 
     conversationsCache = {};
@@ -421,7 +437,7 @@
     const peerId = document.getElementById('peerIdInput').value.trim();
     if (!peerId) return;
 
-    const res = await fetch(`${API_BASE}/conversations/`, {
+    const res = await apiFetch(`${API_BASE}/conversations/`, {
       method: 'POST',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ participants: [peerId], is_group: false })
@@ -442,7 +458,7 @@
     const name = document.getElementById('groupNameInput').value.trim();
     if (!name) return;
 
-    const res = await fetch(`${API_BASE}/groups/`, {
+    const res = await apiFetch(`${API_BASE}/groups/`, {
       method: 'POST',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ name })
@@ -468,7 +484,7 @@
     const code = document.getElementById('inviteCodeInput').value.trim();
     if (!code) return;
 
-    const res = await fetch(`${API_BASE}/groups/join/${code}/`, {
+    const res = await apiFetch(`${API_BASE}/groups/join/${code}/`, {
       method: 'POST',
       headers: authHeaders()
     });
@@ -529,7 +545,7 @@
   }
 
   async function loadMessages(convId) {
-    const res = await fetch(`${API_BASE}/conversations/${convId}/messages/list/`, { headers: authHeaders() });
+    const res = await apiFetch(`${API_BASE}/conversations/${convId}/messages/list/`, { headers: authHeaders() });
     const messages = await res.json();
     const box = document.getElementById('messages');
     box.innerHTML = '';
